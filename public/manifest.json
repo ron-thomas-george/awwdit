@@ -1,0 +1,34 @@
+{
+  "manifest_version": 3,
+  "name": "Awwdit",
+  "description": "Inspect live web pages and edit styles with a designer-friendly side panel.",
+  "version": "0.1.0",
+  "action": {
+    "default_title": "Open Design Inspector"
+  },
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage",
+    "tabs",
+    "tabCapture"
+  ],
+  "host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["index.html", "assets/*"],
+      "matches": ["<all_urls>"]
+    }
+  ],
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
