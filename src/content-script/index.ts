@@ -12,6 +12,7 @@ let lastHoverData: { element: HTMLElement; x: number; y: number } | null = null;
 let panelContainer: HTMLDivElement | null = null;
 let panelIframe: HTMLIFrameElement | null = null;
 let panelVisible = false;
+let desiredInspectEnabled = true;
 let tabIdCache: number | undefined;
 
 const PANEL_CONTAINER_ID = "awwdit-panel-container";
@@ -21,10 +22,9 @@ const highlight = document.createElement("div");
 Object.assign(highlight.style, {
   position: "fixed",
   pointerEvents: "none",
-  zIndex: "2147483647",
+  zIndex: "2147483642",
   border: "2px solid #7C3AED",
-  borderRadius: "8px",
-  boxShadow: "0 0 0 4px rgba(124,58,237,0.25)",
+  borderRadius: "0px",
   transition: "all 80ms ease",
   display: "none"
 });
@@ -33,7 +33,7 @@ const hoverCard = document.createElement("div");
 Object.assign(hoverCard.style, {
   position: "fixed",
   pointerEvents: "none",
-  zIndex: "2147483648",
+  zIndex: "2147483643",
   padding: "12px 14px",
   borderRadius: "16px",
   background: "rgba(255,255,255,0.95)",
@@ -49,7 +49,7 @@ const spacingOverlay = document.createElement("div");
 Object.assign(spacingOverlay.style, {
   position: "fixed",
   pointerEvents: "none",
-  zIndex: "2147483646",
+  zIndex: "2147483641",
   display: "none",
   background: "rgba(59,130,246,0.08)",
   borderRadius: "10px"
@@ -80,8 +80,20 @@ document.documentElement.appendChild(spacingOverlay);
 void ensurePanelMounted();
 
 document.addEventListener("visibilitychange", () => {
-  if (document.hidden) disableInspect();
+  if (document.hidden) {
+    disableInspect();
+    return;
+  }
+  syncInspectState();
 });
+
+function syncInspectState() {
+  if (desiredInspectEnabled && panelVisible) {
+    enableInspect();
+  } else {
+    disableInspect();
+  }
+}
 
 function enableInspect() {
   if (inspectEnabled) return;
@@ -95,10 +107,14 @@ function disableInspect() {
   inspectEnabled = false;
   document.removeEventListener("mousemove", handleHover, true);
   document.removeEventListener("click", handleClick, true);
+  hideHoverArtifacts();
+  lastHoverData = null;
+}
+
+function hideHoverArtifacts() {
   highlight.style.display = "none";
   spacingOverlay.style.display = "none";
   hoverCard.style.display = "none";
-  lastHoverData = null;
 }
 
 function handleHover(event: MouseEvent) {
@@ -319,14 +335,7 @@ function collectPageInsights(): PageInsightsPayload {
   const totalNodes = document.querySelectorAll("*").length;
   const bodyStyles = window.getComputedStyle(document.body);
 
-  const colors = Array.from(new Set([
-    bodyStyles.backgroundColor,
-    bodyStyles.color,
-    window.getComputedStyle(document.querySelector("h1") ?? document.body).color
-  ]))
-    .filter(Boolean)
-    .slice(0, 5)
-    .map((value) => ({ value: value ?? "#111111", usage: 20 }));
+  const colors = collectColorPalette();
 
   const headingNode = document.querySelector("h1, h2, h3");
   const headingStyles = window.getComputedStyle(headingNode ?? document.body);
@@ -364,15 +373,64 @@ function collectPageInsights(): PageInsightsPayload {
   };
 }
 
+function collectColorPalette(): PageInsightsPayload["colors"] {
+  const colorCounts = new Map<string, number>();
+  const elements = Array.from(document.querySelectorAll<HTMLElement>("*"));
+
+  elements.forEach((element) => {
+    const styles = window.getComputedStyle(element);
+    const candidates = [
+      styles.color,
+      styles.backgroundColor,
+      styles.borderTopColor,
+      styles.borderRightColor,
+      styles.borderBottomColor,
+      styles.borderLeftColor
+    ];
+
+    candidates.forEach((raw) => {
+      const normalized = normalizeColor(raw);
+      if (!normalized) return;
+      colorCounts.set(normalized, (colorCounts.get(normalized) ?? 0) + 1);
+    });
+  });
+
+  const total = Array.from(colorCounts.values()).reduce((sum, count) => sum + count, 0);
+  if (total === 0) {
+    return [];
+  }
+
+  return Array.from(colorCounts.entries())
+    .sort((a, b) => b[1] - a[1])
+    .map(([value, count]) => ({
+      value,
+      usage: Math.max(1, Math.round((count / total) * 100))
+    }));
+}
+
+function normalizeColor(value?: string | null) {
+  if (!value) return undefined;
+  const trimmed = value.trim();
+  if (!trimmed || trimmed === "transparent" || trimmed === "inherit" || trimmed === "initial") {
+    return undefined;
+  }
+
+  if (trimmed.startsWith("rgba")) {
+    const alpha = parseFloat(trimmed.slice(trimmed.lastIndexOf(",") + 1, trimmed.length - 1));
+    if (!Number.isNaN(alpha) && alpha === 0) {
+      return undefined;
+    }
+  }
+
+  return trimmed.toLowerCase().replace(/\s*,\s*/g, ",");
+}
+
 function handlePanelMessage(message: PanelToContentMessage) {
   switch (message.type) {
     case "TOGGLE_INSPECT_MODE":
       showHoverCard = message.payload.showHoverCard;
-      if (message.payload.enabled) {
-        enableInspect();
-      } else {
-        disableInspect();
-      }
+      desiredInspectEnabled = message.payload.enabled;
+      syncInspectState();
       if (!showHoverCard) {
         hoverCard.style.display = "none";
       } else if (inspectEnabled && lastHoverData) {
@@ -467,14 +525,20 @@ function isInsidePanel(node: EventTarget | null) {
 async function ensurePanelMounted() {
   if (panelContainer && panelIframe) return;
   const existing = document.getElementById(PANEL_CONTAINER_ID) as HTMLDivElement | null;
+  const runtimeId = chrome.runtime?.id ?? "";
   if (existing) {
-    panelContainer = existing;
-    panelIframe = existing.querySelector("iframe");
-    return;
+    if (existing.dataset.runtimeId !== runtimeId) {
+      existing.remove();
+    } else {
+      panelContainer = existing;
+      panelIframe = existing.querySelector("iframe");
+      return;
+    }
   }
 
   const container = document.createElement("div");
   container.id = PANEL_CONTAINER_ID;
+  container.dataset.runtimeId = runtimeId;
   Object.assign(container.style, {
     position: "fixed",
     top: "16px",
@@ -513,14 +577,15 @@ async function showPanel() {
   if (!panelContainer) return;
   panelContainer.style.display = "block";
   panelVisible = true;
-  enableInspect();
+  syncInspectState();
 }
 
 function hidePanel() {
   if (!panelContainer) return;
   panelContainer.style.display = "none";
   panelVisible = false;
-  disableInspect();
+  syncInspectState();
+  hideHoverArtifacts();
 }
 
 function getTabId(): Promise<number | undefined> {

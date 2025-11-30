@@ -20,7 +20,7 @@ function TypographyCard({ label, value }: { label: string; value: string }) {
   return (
     <Card className="rounded-2xl border border-border/70 px-4 py-3 shadow-none">
       <p className="text-sm font-medium text-muted-foreground">{label}</p>
-      <p className="text-lg font-semibold text-foreground" style={{ fontFamily: value }}>
+      <p className="text-base font-semibold text-foreground">
         {value || "—"}
       </p>
     </Card>

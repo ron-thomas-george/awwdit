@@ -13,7 +13,7 @@ function App() {
   const [panelView, setPanelView] = useState<"overview" | "element">("overview");
   const screenshotRequestedRef = useRef(false);
 
-  useEffect(() => {
+  const notifyPanelReady = useCallback(() => {
     if (!chrome?.runtime) return;
     chrome.runtime.sendMessage({ type: "PANEL_READY" }, () => {
       if (chrome.runtime.lastError) {
@@ -21,6 +21,42 @@ function App() {
       }
     });
   }, []);
+
+  useEffect(() => {
+    notifyPanelReady();
+  }, [notifyPanelReady]);
+
+  useEffect(() => {
+    if (!chrome?.runtime) return;
+    let stopped = false;
+    let port: chrome.runtime.Port | null = null;
+
+    const connectPort = () => {
+      if (stopped) return;
+      try {
+        port = chrome.runtime.connect({ name: "panel-bridge" });
+        notifyPanelReady();
+        port.onDisconnect.addListener(() => {
+          port = null;
+          if (!stopped) {
+            setTimeout(connectPort, 250);
+          }
+        });
+      } catch (error) {
+        console.warn("Failed to connect to background", error);
+        if (!stopped) {
+          setTimeout(connectPort, 500);
+        }
+      }
+    };
+
+    connectPort();
+
+    return () => {
+      stopped = true;
+      port?.disconnect();
+    };
+  }, [notifyPanelReady]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -144,6 +180,8 @@ function App() {
         {panelView === "element" && selectedElement ? (
           <SelectedElementView
             selectedElement={selectedElement}
+            showHoverCard={showHoverCard}
+            onToggleHoverCard={(next) => setShowHoverCard(next)}
             onBack={() => setPanelView("overview")}
             onChange={handleElementStyleChange}
           />
