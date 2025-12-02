@@ -46,8 +46,8 @@ export function SelectedElementView({ selectedElement, showHoverCard, onToggleHo
         </div>
       </div>
 
-      <ScrollArea className="h-full pr-2">
-        <div className="space-y-4">
+      <ScrollArea className="h-full">
+        <div className="space-y-4 px-1">
           <Card className="border border-border/70 bg-white/95">
           <CardHeader className="space-y-4">
             <div className="space-y-1">

@@ -39,7 +39,7 @@ export function SidePanelTabs({ pageInsights, selectedElement }: SidePanelTabsPr
 
       <TabsContent value="colors" className="mt-4 flex-1 overflow-hidden min-w-0">
         <ScrollArea className="h-full min-w-0">
-          <div className="pr-3">
+          <div className="px-1">
             {insights ? (
               <ColorsSection palette={insights.colors} />
             ) : (
@@ -51,28 +51,19 @@ export function SidePanelTabs({ pageInsights, selectedElement }: SidePanelTabsPr
 
       <TabsContent value="type" className="mt-4 flex-1 overflow-hidden min-w-0">
         <ScrollArea className="h-full min-w-0">
-          <div className="pr-3">
+          <div className="px-1">
             {insights ? (
               <TypographySection entries={insights.typography} />
             ) : (
               <EmptyState message="Typography appears after scanning." />
             )}
-            {selectedElement ? (
-              <div className="mt-4 rounded-2xl border border-dashed border-border/70 bg-white/80 p-3 text-xs">
-                <p className="font-medium text-muted-foreground">Selected element</p>
-                <p className="mt-1 text-sm font-semibold">
-                  {selectedElement.styles.fontFamily} · {selectedElement.styles.fontWeight}
-                </p>
-                <p className="text-muted-foreground">{selectedElement.textContent.slice(0, 90)}...</p>
-              </div>
-            ) : null}
           </div>
         </ScrollArea>
       </TabsContent>
 
       <TabsContent value="assets" className="mt-4 flex-1 overflow-hidden min-w-0">
         <ScrollArea className="h-full min-w-0">
-          <div className="pr-3">
+          <div className="px-1">
             {insights ? <ImagesSection assets={insights.images} /> : <EmptyState message="Assets show up once the page loads." />}
           </div>
         </ScrollArea>
