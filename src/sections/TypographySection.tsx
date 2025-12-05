@@ -9,7 +9,6 @@ export function TypographySection({ entries }: TypographySectionProps) {
   if (!entries) return null;
   return (
     <div className="space-y-3">
-      <h3 className="text-base font-semibold text-foreground">Typography</h3>
       <TypographyCard label="Headings" value={entries.headings} />
       <TypographyCard label="Body" value={entries.body} />
     </div>

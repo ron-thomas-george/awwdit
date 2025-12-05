@@ -14,6 +14,7 @@ let panelIframe: HTMLIFrameElement | null = null;
 let panelVisible = false;
 let desiredInspectEnabled = true;
 let tabIdCache: number | undefined;
+let dragState: { pointerStartScreenX: number; panelStartLeft: number; anchorTop: number } | null = null;
 
 const PANEL_CONTAINER_ID = "awwdit-panel-container";
 const PANEL_IFRAME_ID = "awwdit-panel-frame";
@@ -77,15 +78,55 @@ document.documentElement.appendChild(highlight);
 document.documentElement.appendChild(hoverCard);
 document.documentElement.appendChild(spacingOverlay);
 
-void ensurePanelMounted();
+function handleDragMessage(event: MessageEvent) {
+  const data = event.data as {
+    __awwditDrag?: boolean;
+    phase?: "start" | "move" | "end";
+    clientX?: number;
+    clientY?: number;
+    screenX?: number;
+    screenY?: number;
+  };
+  if (!data || !data.__awwditDrag) return;
+  if (!panelContainer) return;
+  if (typeof data.screenX !== "number") return;
 
-document.addEventListener("visibilitychange", () => {
-  if (document.hidden) {
-    disableInspect();
-    return;
+  const panelRect = panelContainer.getBoundingClientRect();
+  const width = panelRect.width;
+  const minMargin = 12;
+  const maxLeft = Math.max(minMargin, window.innerWidth - width - minMargin);
+
+  if (data.phase === "start" || !dragState) {
+    dragState = {
+      pointerStartScreenX: data.screenX,
+      panelStartLeft: panelRect.left,
+      anchorTop: panelRect.top
+    };
+    panelContainer.style.left = `${panelRect.left}px`;
+    panelContainer.style.top = `${panelRect.top}px`;
+    panelContainer.style.right = "auto";
+    panelContainer.style.bottom = "auto";
+    panelContainer.style.position = "fixed";
+    if (data.phase === "start") {
+      return;
+    }
   }
-  syncInspectState();
-});
+
+  if (!dragState) return;
+
+  const deltaX = data.screenX - dragState.pointerStartScreenX;
+  const nextLeft = clamp(dragState.panelStartLeft + deltaX, minMargin, maxLeft);
+  panelContainer.style.left = `${nextLeft}px`;
+  panelContainer.style.top = `${dragState.anchorTop}px`;
+
+  if (data.phase === "end") {
+    dragState = null;
+  }
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max);
+}
 
 function syncInspectState() {
   if (desiredInspectEnabled && panelVisible) {
@@ -94,6 +135,20 @@ function syncInspectState() {
     disableInspect();
   }
 }
+
+window.addEventListener("message", handleDragMessage, false);
+
+void ensurePanelMounted();
+
+syncInspectState();
+
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) {
+    disableInspect();
+    return;
+  }
+  syncInspectState();
+});
 
 function enableInspect() {
   if (inspectEnabled) return;

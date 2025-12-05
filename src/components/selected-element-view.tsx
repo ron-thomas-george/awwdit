@@ -1,5 +1,6 @@
 import { ArrowLeft, Layers } from "lucide-react";
 import type { SelectedElementPayload } from "@/lib/messages";
+import { parseSpacing } from "@/lib/spacing";
 import { rgbToHex } from "@/lib/utils";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
@@ -28,6 +29,18 @@ export function SelectedElementView({ selectedElement, showHoverCard, onToggleHo
   const { tag, selector, metrics, styles, textContent, summary } = selectedElement;
   const dimensionsLabel = `${metrics.width}px × ${metrics.height}px`;
   const colorSwatch = rgbToHex(styles.color ?? "#111111");
+  const marginSpacing = parseSpacing(metrics.margin);
+  const paddingSpacing = parseSpacing(metrics.padding);
+  const getSpacingLabel = (value?: string) => {
+    if (!value) return "0";
+    const trimmed = value.trim();
+    if (!trimmed) return "0";
+    const pxMatch = trimmed.match(/^(-?[\d.]+)px$/i);
+    if (pxMatch) {
+      return pxMatch[1];
+    }
+    return trimmed;
+  };
   const cleanSelector = (selector ?? "")
     .replace(new RegExp(`^${tag}`, "i"), "")
     .trim()
@@ -68,9 +81,37 @@ export function SelectedElementView({ selectedElement, showHoverCard, onToggleHo
             </div>
           </CardHeader>
           <CardContent className="space-y-6">
-            <div className="rounded-3xl border border-dashed border-slate-200 bg-slate-50/80 p-6">
-              <div className="mx-auto flex h-32 w-full max-w-sm items-center justify-center rounded-2xl bg-white shadow-inner">
-                <span className="rounded-full bg-slate-900 px-4 py-1 text-sm font-semibold text-white">{dimensionsLabel}</span>
+            <div className="relative rounded-[32px] border border-dashed border-slate-200 bg-slate-50/80 p-6">
+              <span className="pointer-events-none absolute left-1/2 top-2 -translate-x-1/2 text-xs font-semibold text-muted-foreground">
+                {getSpacingLabel(marginSpacing.top)}
+              </span>
+              <span className="pointer-events-none absolute left-1/2 bottom-2 -translate-x-1/2 text-xs font-semibold text-muted-foreground">
+                {getSpacingLabel(marginSpacing.bottom)}
+              </span>
+              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-muted-foreground">
+                {getSpacingLabel(marginSpacing.left)}
+              </span>
+              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-muted-foreground">
+                {getSpacingLabel(marginSpacing.right)}
+              </span>
+
+              <div className="relative rounded-[26px] border border-border/60 bg-white/90 p-4 shadow-inner">
+                <span className="pointer-events-none absolute left-1/2 top-8 -translate-x-1/2 text-xs font-semibold text-muted-foreground">
+                  {getSpacingLabel(paddingSpacing.top)}
+                </span>
+                <span className="pointer-events-none absolute left-1/2 bottom-8 -translate-x-1/2 text-xs font-semibold text-muted-foreground">
+                  {getSpacingLabel(paddingSpacing.bottom)}
+                </span>
+                <span className="pointer-events-none absolute left-8 top-1/2 -translate-y-1/2 text-xs font-semibold text-muted-foreground">
+                  {getSpacingLabel(paddingSpacing.left)}
+                </span>
+                <span className="pointer-events-none absolute right-8 top-1/2 -translate-y-1/2 text-xs font-semibold text-muted-foreground">
+                  {getSpacingLabel(paddingSpacing.right)}
+                </span>
+
+                <div className="mx-auto flex h-32 w-full max-w-sm items-center justify-center rounded-2xl border border-border/60 bg-white shadow-inner">
+                  <span className="rounded-full bg-slate-900 px-4 py-1 text-sm font-semibold text-white">{dimensionsLabel}</span>
+                </div>
               </div>
             </div>
 

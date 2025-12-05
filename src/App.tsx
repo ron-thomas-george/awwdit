@@ -3,14 +3,22 @@ import { PanelShell } from "./components/panel-shell";
 import { SidePanelTabs } from "./components/side-panel-tabs";
 import { SelectedElementPayload, PageInsightsPayload, PanelToContentMessage } from "./lib/messages";
 import { InspectorHeader } from "./components/inspector-header";
-import { requestTabScreenshot, sendMessageToActiveTab, setActiveTabId } from "./lib/chrome";
+import { requestTabScreenshot, sendMessageToActiveTab, setActiveTabId as cacheActiveTabId } from "./lib/chrome";
 import { SelectedElementView } from "./components/selected-element-view";
+
+type TabSnapshot = {
+  pageInsights: PageInsightsPayload | null;
+  selectedElement: SelectedElementPayload | null;
+  panelView: "overview" | "element";
+};
 
 function App() {
   const [showHoverCard, setShowHoverCard] = useState(true);
   const [selectedElement, setSelectedElement] = useState<SelectedElementPayload | null>(null);
   const [pageInsights, setPageInsights] = useState<PageInsightsPayload | null>(null);
   const [panelView, setPanelView] = useState<"overview" | "element">("overview");
+  const [activeTabId, setActiveTabIdState] = useState<number | undefined>();
+  const tabSnapshotsRef = useRef<Record<number, TabSnapshot>>({});
   const screenshotRequestedRef = useRef(false);
 
   const notifyPanelReady = useCallback(() => {
@@ -64,8 +72,39 @@ function App() {
     if (!tabIdParam) return;
     const parsed = Number(tabIdParam);
     if (!Number.isNaN(parsed)) {
-      setActiveTabId(parsed);
+      cacheActiveTabId(parsed);
+      setActiveTabIdState(parsed);
     }
+  }, []);
+
+  useEffect(() => {
+    if (activeTabId !== undefined) return;
+    if (!chrome?.tabs) return;
+
+    chrome.tabs.query({ active: true, currentWindow: true }).then(([tab]) => {
+      if (tab?.id !== undefined) {
+        cacheActiveTabId(tab.id);
+        setActiveTabIdState(tab.id);
+      }
+    });
+  }, [activeTabId]);
+
+  useEffect(() => {
+    if (typeof activeTabId !== "number") return;
+    tabSnapshotsRef.current[activeTabId] = { pageInsights, selectedElement, panelView };
+  }, [activeTabId, pageInsights, selectedElement, panelView]);
+
+  const restoreSnapshot = useCallback((tabId: number) => {
+    const snapshot = tabSnapshotsRef.current[tabId];
+    if (snapshot) {
+      setPageInsights(snapshot.pageInsights);
+      setSelectedElement(snapshot.selectedElement);
+      setPanelView(snapshot.panelView);
+      return;
+    }
+    setPageInsights(null);
+    setSelectedElement(null);
+    setPanelView("overview");
   }, []);
 
   const requestPageInsights = useCallback(() => {
@@ -100,20 +139,21 @@ function App() {
   useEffect(() => {
     if (!chrome?.tabs) return;
 
-    const handleTabActivated = () => {
-      setPageInsights(null);
-      setSelectedElement(null);
-      setPanelView("overview");
-      requestPageInsights();
+    const handleTabActivated = (info: chrome.tabs.TabActiveInfo) => {
+      cacheActiveTabId(info.tabId);
+      setActiveTabIdState(info.tabId);
+      restoreSnapshot(info.tabId);
     };
 
-    const handleTabUpdated = (_tabId: number, changeInfo: chrome.tabs.TabChangeInfo, tab: chrome.tabs.Tab) => {
+    const handleTabUpdated = (updatedTabId: number, changeInfo: chrome.tabs.TabChangeInfo, tab: chrome.tabs.Tab) => {
       if (!tab.active) return;
-      if (changeInfo.status !== "complete" && !changeInfo.url) return;
-      setPageInsights(null);
-      setSelectedElement(null);
-      setPanelView("overview");
-      requestPageInsights();
+      if (!changeInfo.url) return;
+      delete tabSnapshotsRef.current[updatedTabId];
+      if (tab.id !== undefined) {
+        cacheActiveTabId(tab.id);
+        setActiveTabIdState(tab.id);
+        restoreSnapshot(tab.id);
+      }
     };
 
     chrome.tabs.onActivated.addListener(handleTabActivated);
@@ -123,7 +163,7 @@ function App() {
       chrome.tabs.onActivated.removeListener(handleTabActivated);
       chrome.tabs.onUpdated.removeListener(handleTabUpdated);
     };
-  }, [requestPageInsights]);
+  }, [restoreSnapshot]);
 
   useEffect(() => {
     if (!chrome?.runtime) return;

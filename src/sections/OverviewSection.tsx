@@ -1,4 +1,5 @@
-import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { rgbToHex } from "@/lib/utils";
 import type { PageInsightsPayload } from "@/lib/messages";
 
 interface OverviewSectionProps {
@@ -86,18 +87,14 @@ interface ColorPillProps {
 }
 
 function ColorPill({ value, usage, contrast }: ColorPillProps) {
+  const hex = rgbToHex(value);
   return (
     <Card className="flex items-center gap-3 rounded-2xl border border-border/70 bg-white/90 px-3 py-2 shadow-none">
-      <div className="h-10 w-10 rounded-xl border border-border" style={{ backgroundColor: value }} />
+      <div className="h-10 w-10 rounded-xl border border-border" style={{ backgroundColor: hex }} />
       <div className="flex-1">
-        <div className="flex items-center justify-between text-sm font-medium text-foreground">
-          <span className="truncate">{value}</span>
-          <span className="text-xs text-muted-foreground">{usage}% usage</span>
-        </div>
-        <div className="mt-2 h-1.5 rounded-full bg-muted">
-          <div className="h-full rounded-full bg-gradient-to-r from-primary to-purple-400" style={{ width: `${Math.min(100, usage)}%` }} />
-        </div>
-        {contrast ? <p className="mt-1 text-xs text-muted-foreground">Contrast vs white: {contrast}</p> : null}
+        <p className="text-sm font-medium text-foreground truncate">{hex}</p>
+        <p className="mt-1 text-xs text-muted-foreground">{usage}% usage</p>
+        {contrast ? <p className="mt-2 text-xs text-muted-foreground">Contrast vs white: {contrast}</p> : null}
       </div>
     </Card>
   );
