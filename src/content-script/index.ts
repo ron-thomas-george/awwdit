@@ -24,11 +24,58 @@ Object.assign(highlight.style, {
   position: "fixed",
   pointerEvents: "none",
   zIndex: "2147483642",
-  border: "2px solid #7C3AED",
+  border: "2px solid #36C10C",
+  background: "rgba(54, 193, 12, 0.005)",
   borderRadius: "0px",
   transition: "all 80ms ease",
   display: "none"
 });
+
+const selectionOverlay = document.createElement("div");
+Object.assign(selectionOverlay.style, {
+  position: "fixed",
+  pointerEvents: "none",
+  zIndex: "2147483643",
+  border: "2px solid #111111",
+  borderRadius: "0px",
+  boxShadow: "0 0 0 2px rgba(17,17,17,0.08)",
+  display: "none"
+});
+
+function createMeasurementLine() {
+  const line = document.createElement("div");
+  const label = document.createElement("span");
+  Object.assign(line.style, {
+    position: "fixed",
+    pointerEvents: "none",
+    zIndex: "2147483644",
+    display: "none"
+  });
+  Object.assign(label.style, {
+    position: "absolute",
+    transform: "translate(-50%, -50%)",
+    background: "#0f172a",
+    color: "#e2fbe2",
+    borderRadius: "999px",
+    padding: "2px 8px",
+    fontSize: "11px",
+    fontFamily: "Inter, -apple-system, BlinkMacSystemFont, sans-serif",
+    letterSpacing: "0.04em",
+    textTransform: "uppercase",
+    boxShadow: "0 6px 16px rgba(15,23,42,0.25)"
+  });
+  line.appendChild(label);
+  return { line, label };
+}
+
+const horizontalMeasurement = createMeasurementLine();
+horizontalMeasurement.line.style.height = "1px";
+horizontalMeasurement.line.style.borderTop = "1px dashed #36C10C";
+
+const verticalMeasurement = createMeasurementLine();
+verticalMeasurement.line.style.width = "1px";
+verticalMeasurement.line.style.borderLeft = "1px dashed #36C10C";
+verticalMeasurement.label.style.transform = "translate(-100%, -50%)";
 
 const hoverCard = document.createElement("div");
 Object.assign(hoverCard.style, {
@@ -52,31 +99,151 @@ Object.assign(spacingOverlay.style, {
   pointerEvents: "none",
   zIndex: "2147483641",
   display: "none",
-  background: "rgba(59,130,246,0.08)",
+  background: "rgba(54,193,12,0.004)",
   borderRadius: "10px"
 });
 
 const paddingOverlay = document.createElement("div");
 Object.assign(paddingOverlay.style, {
   position: "absolute",
-  background: "rgba(16,185,129,0.18)",
+  background: "rgba(16,185,129,0.04)",
   borderRadius: "8px"
 });
 
 const contentOverlay = document.createElement("div");
 Object.assign(contentOverlay.style, {
   position: "absolute",
-  background: "rgba(255,255,255,0.8)",
+  background: "rgba(255,255,255,0.15)",
   borderRadius: "6px",
-  border: "1px dashed rgba(15,23,42,0.2)"
+  border: "1px dashed rgba(15,23,42,0.12)"
 });
 
 paddingOverlay.appendChild(contentOverlay);
 spacingOverlay.appendChild(paddingOverlay);
 
 document.documentElement.appendChild(highlight);
+document.documentElement.appendChild(selectionOverlay);
 document.documentElement.appendChild(hoverCard);
 document.documentElement.appendChild(spacingOverlay);
+horizontalMeasurement.line.appendChild(horizontalMeasurement.label);
+document.documentElement.appendChild(horizontalMeasurement.line);
+verticalMeasurement.line.appendChild(verticalMeasurement.label);
+document.documentElement.appendChild(verticalMeasurement.line);
+
+const colorCanvas = document.createElement("canvas");
+const colorContext = colorCanvas.getContext("2d");
+
+function updateSelectionOverlay(element: HTMLElement | null) {
+  if (!element || !element.isConnected) {
+    selectionOverlay.style.display = "none";
+    return;
+  }
+  const rect = element.getBoundingClientRect();
+  selectionOverlay.style.display = "block";
+  selectionOverlay.style.top = `${rect.top}px`;
+  selectionOverlay.style.left = `${rect.left}px`;
+  selectionOverlay.style.width = `${rect.width}px`;
+  selectionOverlay.style.height = `${rect.height}px`;
+}
+
+function hideMeasurements() {
+  horizontalMeasurement.line.style.display = "none";
+  verticalMeasurement.line.style.display = "none";
+}
+
+function updateMeasurementGuides(selectedElement: HTMLElement, hoverRect: DOMRect) {
+  if (!selectedElement.isConnected) {
+    hideMeasurements();
+    return;
+  }
+  const selectedRect = selectedElement.getBoundingClientRect();
+  const horizontalShown = renderHorizontalMeasurement(selectedRect, hoverRect);
+  const verticalShown = renderVerticalMeasurement(selectedRect, hoverRect);
+  if (!horizontalShown && !verticalShown) {
+    hideMeasurements();
+  }
+}
+
+function renderHorizontalMeasurement(selectedRect: DOMRect, hoverRect: DOMRect) {
+  const gapToRight = hoverRect.left - selectedRect.right;
+  const gapToLeft = selectedRect.left - hoverRect.right;
+  let startX: number | null = null;
+  let endX: number | null = null;
+
+  if (gapToRight > 0) {
+    startX = selectedRect.right;
+    endX = hoverRect.left;
+  } else if (gapToLeft > 0) {
+    startX = hoverRect.right;
+    endX = selectedRect.left;
+  } else {
+    horizontalMeasurement.line.style.display = "none";
+    return false;
+  }
+
+  const width = Math.round(Math.abs(endX - startX));
+  if (width < 1) {
+    horizontalMeasurement.line.style.display = "none";
+    return false;
+  }
+
+  const midY = computeAlignedCoordinate(selectedRect.top, selectedRect.bottom, hoverRect.top, hoverRect.bottom);
+  const top = clamp(midY, 16, window.innerHeight - 16);
+  horizontalMeasurement.line.style.display = "block";
+  horizontalMeasurement.line.style.left = `${Math.min(startX, endX)}px`;
+  horizontalMeasurement.line.style.width = `${width}px`;
+  horizontalMeasurement.line.style.top = `${top}px`;
+  horizontalMeasurement.label.textContent = `${width}px`;
+  horizontalMeasurement.label.style.left = `${width / 2}px`;
+  horizontalMeasurement.label.style.top = "-14px";
+  return true;
+}
+
+function renderVerticalMeasurement(selectedRect: DOMRect, hoverRect: DOMRect) {
+  const gapBelow = hoverRect.top - selectedRect.bottom;
+  const gapAbove = selectedRect.top - hoverRect.bottom;
+  let startY: number | null = null;
+  let endY: number | null = null;
+
+  if (gapBelow > 0) {
+    startY = selectedRect.bottom;
+    endY = hoverRect.top;
+  } else if (gapAbove > 0) {
+    startY = hoverRect.bottom;
+    endY = selectedRect.top;
+  } else {
+    verticalMeasurement.line.style.display = "none";
+    return false;
+  }
+
+  const height = Math.round(Math.abs(endY - startY));
+  if (height < 1) {
+    verticalMeasurement.line.style.display = "none";
+    return false;
+  }
+
+  const midX = computeAlignedCoordinate(selectedRect.left, selectedRect.right, hoverRect.left, hoverRect.right);
+  const left = clamp(midX, 16, window.innerWidth - 16);
+  verticalMeasurement.line.style.display = "block";
+  verticalMeasurement.line.style.left = `${left}px`;
+  verticalMeasurement.line.style.height = `${height}px`;
+  verticalMeasurement.line.style.top = `${Math.min(startY, endY)}px`;
+  verticalMeasurement.label.textContent = `${height}px`;
+  verticalMeasurement.label.style.left = "0px";
+  verticalMeasurement.label.style.top = `${height / 2}px`;
+  return true;
+}
+
+function computeAlignedCoordinate(aStart: number, aEnd: number, bStart: number, bEnd: number) {
+  const overlapStart = Math.max(aStart, bStart);
+  const overlapEnd = Math.min(aEnd, bEnd);
+  if (overlapStart <= overlapEnd) {
+    return overlapStart + (overlapEnd - overlapStart) / 2;
+  }
+  const centerA = aStart + (aEnd - aStart) / 2;
+  const centerB = bStart + (bEnd - bStart) / 2;
+  return (centerA + centerB) / 2;
+}
 
 function handleDragMessage(event: MessageEvent) {
   const data = event.data as {
@@ -163,13 +330,16 @@ function disableInspect() {
   document.removeEventListener("mousemove", handleHover, true);
   document.removeEventListener("click", handleClick, true);
   hideHoverArtifacts();
+  updateSelectionOverlay(null);
   lastHoverData = null;
+  currentElement = null;
 }
 
 function hideHoverArtifacts() {
   highlight.style.display = "none";
   spacingOverlay.style.display = "none";
   hoverCard.style.display = "none";
+  hideMeasurements();
 }
 
 function handleHover(event: MouseEvent) {
@@ -177,7 +347,12 @@ function handleHover(event: MouseEvent) {
   const target = event.target as HTMLElement | null;
   if (!target || target === document.body || target === document.documentElement) return;
   if (isInsidePanel(target)) return;
-  drawHighlight(target);
+  const hoverRect = drawHighlight(target);
+  if (currentElement && target !== currentElement) {
+    updateMeasurementGuides(currentElement, hoverRect);
+  } else {
+    hideMeasurements();
+  }
   lastHoverData = { element: target, x: event.clientX, y: event.clientY };
   updateHoverCard(target, event.clientX, event.clientY);
 }
@@ -199,11 +374,13 @@ function drawHighlight(element: HTMLElement) {
   highlight.style.width = `${rect.width}px`;
   highlight.style.height = `${rect.height}px`;
   positionSpacingOverlay(element, rect);
+  return rect;
 }
 
 function selectElement(element: HTMLElement) {
   currentElement = element;
-  drawHighlight(element);
+  updateSelectionOverlay(element);
+  hideMeasurements();
   hoverCard.style.display = "none";
   chrome.runtime.sendMessage({
     type: "ELEMENT_SELECTED",
@@ -225,13 +402,22 @@ function serializeElement(element: HTMLElement): SelectedElementPayload {
     color: styles.color || "#111111",
     backgroundColor: styles.backgroundColor || "transparent",
     margin: `${styles.marginTop} ${styles.marginRight} ${styles.marginBottom} ${styles.marginLeft}`,
-    padding: `${styles.paddingTop} ${styles.paddingRight} ${styles.paddingBottom} ${styles.paddingLeft}`
+    padding: `${styles.paddingTop} ${styles.paddingRight} ${styles.paddingBottom} ${styles.paddingLeft}`,
+    marginTop: styles.marginTop,
+    marginRight: styles.marginRight,
+    marginBottom: styles.marginBottom,
+    marginLeft: styles.marginLeft,
+    paddingTop: styles.paddingTop,
+    paddingRight: styles.paddingRight,
+    paddingBottom: styles.paddingBottom,
+    paddingLeft: styles.paddingLeft
   };
 
   return {
     tag: element.tagName.toLowerCase(),
     selector: buildSelector(element),
     preciseSelector: buildPreciseSelector(element),
+    shortSelector: getShortSelector(element),
     ancestors: collectAncestors(element),
     summary: element.textContent?.trim().slice(0, 120) ?? "",
     textContent: element.textContent ?? "",
@@ -244,6 +430,12 @@ function serializeElement(element: HTMLElement): SelectedElementPayload {
     },
     computed: collectComputedCategories(styles)
   };
+}
+
+function getShortSelector(element: HTMLElement) {
+  const tag = element.tagName.toLowerCase();
+  const firstClass = Array.from(element.classList).find(Boolean);
+  return firstClass ? `${tag}.${firstClass}` : tag;
 }
 
 function buildSelector(element: HTMLElement) {
@@ -549,17 +741,17 @@ function updateHoverCard(element: HTMLElement, x: number, y: number) {
 
   const rect = element.getBoundingClientRect();
   const styles = window.getComputedStyle(element);
-  const classes = Array.from(element.classList).slice(0, 3).join(".");
+  const shortLabel = getShortSelector(element);
+  const colorHex = normalizeToHex(styles.color);
   hoverCard.innerHTML = `
-    <div style="font-size:11px; text-transform:uppercase; font-weight:600; letter-spacing:0.08em; color:#6366f1;">
-      ${element.tagName.toLowerCase()}
-      ${classes ? `<span style="color:#94a3b8; text-transform:none;">.${classes}</span>` : ""}
+    <div style="font-size:13px; font-weight:700; letter-spacing:0.01em; color:#4338ca;">
+      ${shortLabel}
     </div>
     <div style="margin-top:6px; font-size:13px; font-weight:600;">${Math.round(rect.width)} × ${Math.round(rect.height)} px</div>
     <div style="margin-top:4px; color:#475569;">Font: ${styles.fontFamily?.split(",")[0] ?? "system"} · ${styles.fontSize}</div>
     <div style="margin-top:4px; color:#475569; display:flex; align-items:center; gap:8px;">
-      <span>Color: ${styles.color}</span>
-      <span style="width:14px; height:14px; border-radius:4px; background:${styles.color}; border:1px solid rgba(15,23,42,0.15);"></span>
+      <span>Color: ${colorHex}</span>
+      <span style="width:14px; height:14px; border-radius:4px; background:${colorHex}; border:1px solid rgba(15,23,42,0.15);"></span>
     </div>`;
 
   hoverCard.style.display = "block";
@@ -659,4 +851,86 @@ function getTabId(): Promise<number | undefined> {
 
 function formatFontFamily(font: string) {
   return font.split(",").map((token) => token.trim()).find(Boolean) ?? font;
+}
+
+function normalizeToHex(raw?: string | null) {
+  if (!raw) return "#000000";
+  const value = raw.trim();
+  const lower = value.toLowerCase();
+  if (lower.startsWith("#")) {
+    if (value.length === 4) {
+      const [, r, g, b] = value;
+      return `#${r}${r}${g}${g}${b}${b}`.toUpperCase();
+    }
+    return value.toUpperCase();
+  }
+  if (lower.startsWith("lab(")) {
+    const labHex = labToHex(value);
+    if (labHex) return labHex;
+  }
+  const ctx = colorContext;
+  if (!ctx) return value;
+  try {
+    ctx.fillStyle = "#000000";
+    ctx.fillStyle = value;
+    const parsed = ctx.fillStyle;
+    if (parsed.startsWith("#")) {
+      return parsed.toUpperCase();
+    }
+    const rgbMatch = parsed.match(/^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/i);
+    if (rgbMatch) {
+      const [, r, g, b] = rgbMatch;
+      return `#${Number(r).toString(16).padStart(2, "0")}${Number(g).toString(16).padStart(2, "0")}${Number(b).toString(16).padStart(2, "0")}`.toUpperCase();
+    }
+  } catch {
+    // fall through
+  }
+  return value;
+}
+
+function labToHex(labValue: string) {
+  const labRegex = /^lab\(\s*([-\d.]+)(%?)\s+([-\d.]+)\s+([-\d.]+)(?:\s*\/\s*([-\d.]+)(%?))?\s*\)$/i;
+  const match = labValue.trim().match(labRegex);
+  if (!match) return undefined;
+  let [, lRaw, lUnit, aRaw, bRaw] = match;
+  let L = parseFloat(lRaw);
+  const a = parseFloat(aRaw);
+  const b = parseFloat(bRaw);
+  if (Number.isNaN(L) || Number.isNaN(a) || Number.isNaN(b)) {
+    return undefined;
+  }
+  if (lUnit === "%") {
+    L = (L / 100) * 100;
+  }
+  const epsilon = 216 / 24389;
+  const kappa = 24389 / 27;
+  const fy = (L + 16) / 116;
+  const fx = a / 500 + fy;
+  const fz = fy - b / 200;
+  const fx3 = fx ** 3;
+  const fz3 = fz ** 3;
+  const xr = fx3 > epsilon ? fx3 : (116 * fx - 16) / kappa;
+  const yr = L > kappa * epsilon ? fy ** 3 : L / kappa;
+  const zr = fz3 > epsilon ? fz3 : (116 * fz - 16) / kappa;
+  const Xn = 0.95047;
+  const Yn = 1;
+  const Zn = 1.08883;
+  const X = xr * Xn;
+  const Y = yr * Yn;
+  const Z = zr * Zn;
+  let r = X * 3.2406 + Y * -1.5372 + Z * -0.4986;
+  let g = X * -0.9689 + Y * 1.8758 + Z * 0.0415;
+  let bl = X * 0.0557 + Y * -0.204 + Z * 1.057;
+  const linearToSrgb = (c: number) => {
+    const clamped = Math.max(0, Math.min(1, c));
+    return clamped <= 0.0031308 ? 12.92 * clamped : 1.055 * Math.pow(clamped, 1 / 2.4) - 0.055;
+  };
+  r = linearToSrgb(r);
+  g = linearToSrgb(g);
+  bl = linearToSrgb(bl);
+  const toHex = (c: number) => Math.round(c * 255)
+    .toString(16)
+    .padStart(2, "0")
+    .toUpperCase();
+  return `#${toHex(r)}${toHex(g)}${toHex(bl)}`;
 }

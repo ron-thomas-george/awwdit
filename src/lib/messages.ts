@@ -61,6 +61,14 @@ export interface ElementStyles {
   backgroundColor: string;
   margin?: string;
   padding?: string;
+  marginTop?: string;
+  marginRight?: string;
+  marginBottom?: string;
+  marginLeft?: string;
+  paddingTop?: string;
+  paddingRight?: string;
+  paddingBottom?: string;
+  paddingLeft?: string;
 }
 
 export interface ElementMetrics {
@@ -79,6 +87,7 @@ export interface SelectedElementPayload {
   tag: string;
   selector: string;
   preciseSelector: string;
+  shortSelector: string;
   ancestors: string[];
   summary: string;
   textContent: string;

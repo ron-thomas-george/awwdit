@@ -69,10 +69,10 @@ export function ElementControls({ selectedElement, onChange }: ElementControlsPr
   const backgroundValue = rgbToHex(styles.backgroundColor ?? "#ffffff");
 
   return (
-    <div className="space-y-6">
-      <div className="space-y-3">
+    <div className="space-y-4">
+      <div className="space-y-4">
         <div>
-          <Label className="text-xs uppercase tracking-wide text-muted-foreground">Font family</Label>
+          <Label className="text-xs font-medium text-muted-foreground">Font Family</Label>
           <Input
             value={styles.fontFamily ?? ""}
             onChange={(event) => handleChange("fontFamily", event.target.value)}
@@ -83,7 +83,7 @@ export function ElementControls({ selectedElement, onChange }: ElementControlsPr
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <Label className="text-xs uppercase tracking-wide text-muted-foreground">Font weight</Label>
+            <Label className="text-xs font-medium text-muted-foreground">Font Weight</Label>
             <Select value={styles.fontWeight} onValueChange={(value) => handleChange("fontWeight", value)}>
               <SelectTrigger className="mt-1">
                 <SelectValue placeholder="Weight" />
@@ -98,7 +98,7 @@ export function ElementControls({ selectedElement, onChange }: ElementControlsPr
             </Select>
           </div>
           <div>
-            <Label className="text-xs uppercase tracking-wide text-muted-foreground">Text align</Label>
+            <Label className="text-xs font-medium text-muted-foreground">Text Align</Label>
             <Select value={styles.textAlign} onValueChange={(value) => handleChange("textAlign", value)}>
               <SelectTrigger className="mt-1">
                 <SelectValue placeholder="Alignment" />
@@ -115,17 +115,17 @@ export function ElementControls({ selectedElement, onChange }: ElementControlsPr
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <NumberField label="Font size" suffix="px" value={styles.fontSize} onChange={(value) => handleChange("fontSize", value)} />
-        <NumberField label="Line height" suffix="px" value={styles.lineHeight} onChange={(value) => handleChange("lineHeight", value)} />
+      <div className="grid grid-cols-2 gap-x-4 gap-y-5">
+        <NumberField label="Font Size" suffix="px" value={styles.fontSize} onChange={(value) => handleChange("fontSize", value)} />
+        <NumberField label="Line Height" suffix="px" value={styles.lineHeight} onChange={(value) => handleChange("lineHeight", value)} />
         <NumberField
-          label="Letter spacing"
+          label="Letter Spacing"
           suffix="px"
           value={styles.letterSpacing}
           onChange={(value) => handleChange("letterSpacing", value)}
         />
         <TextField
-          label="Text transform"
+          label="Text Transform"
           value={styles.textTransform ?? ""}
           onChange={(value) => handleChange("textTransform", value)}
           placeholder="none | uppercase"
@@ -133,14 +133,10 @@ export function ElementControls({ selectedElement, onChange }: ElementControlsPr
       </div>
 
       <div className="grid grid-cols-2 gap-4">
-        <ColorField label="Text color" value={colorValue} onChange={(value) => handleChange("color", value)} />
+        <ColorField label="Text Color" value={colorValue} onChange={(value) => handleChange("color", value)} />
         <ColorField label="Background" value={backgroundValue} onChange={(value) => handleChange("backgroundColor", value)} />
       </div>
 
-      <div className="space-y-4 rounded-2xl border border-dashed border-border/60 p-4">
-        <SpacingField label="Padding" value={styles.padding} onChange={(value) => handleChange("padding", value)} />
-        <SpacingField label="Margin" value={styles.margin} onChange={(value) => handleChange("margin", value)} />
-      </div>
     </div>
   );
 }
@@ -157,7 +153,7 @@ function NumberField({ label, value, suffix = "px", onChange }: NumberFieldProps
   const displayValue = Number.isFinite(numeric) ? numeric : "";
   return (
     <div>
-      <Label className="text-xs uppercase tracking-wide text-muted-foreground">{label}</Label>
+      <Label className="text-xs font-medium text-muted-foreground">{label}</Label>
       <div className="mt-1 flex h-11 items-center gap-2 rounded-xl border border-input bg-white px-3">
         <Input
           type="number"
@@ -169,7 +165,7 @@ function NumberField({ label, value, suffix = "px", onChange }: NumberFieldProps
           unstyled
           className="h-full border-0 px-0 text-base"
         />
-        <span className="text-xs uppercase text-muted-foreground">{suffix}</span>
+        <span className="text-xs text-muted-foreground">{suffix}</span>
       </div>
     </div>
   );
@@ -185,14 +181,14 @@ interface TextFieldProps {
 function TextField({ label, value, placeholder, onChange }: TextFieldProps) {
   return (
     <div>
-      <Label className="text-xs uppercase tracking-wide text-muted-foreground">{label}</Label>
+      <Label className="text-xs font-medium text-muted-foreground">{label}</Label>
       <div className="mt-1 flex h-11 items-center rounded-xl border border-input bg-white px-3">
         <Input
           value={value}
           onChange={(event) => onChange(event.target.value)}
           placeholder={placeholder}
           unstyled
-          className="text-base"
+          className="text-base normal-case"
         />
       </div>
     </div>
@@ -208,7 +204,7 @@ interface ColorFieldProps {
 function ColorField({ label, value, onChange }: ColorFieldProps) {
   return (
     <div>
-      <Label className="text-xs uppercase tracking-wide text-muted-foreground">{label}</Label>
+      <Label className="text-xs font-medium text-muted-foreground">{label}</Label>
       <div className="mt-1 flex h-11 items-center gap-3 rounded-xl border border-input bg-white px-3">
         <input
           type="color"

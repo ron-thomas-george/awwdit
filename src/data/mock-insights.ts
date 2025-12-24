@@ -49,6 +49,7 @@ export const mockSelectedElement: SelectedElementPayload = {
   tag: "H1",
   selector: "hero .title",
   preciseSelector: "body > main:nth-of-type(1) > section.hero:nth-of-type(1) > h1",
+  shortSelector: "h1.hero-title",
   ancestors: ["body", "main.hero", "section.hero"],
   summary: "Primary hero headline",
   textContent: "Design systems with guard rails",
